@@ -1,0 +1,4 @@
+from testing import tui
+
+if __name__ == "__main__":
+    tui.start()
