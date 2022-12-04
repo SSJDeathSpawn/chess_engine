@@ -5,5 +5,5 @@ class InvalidSquareException(ValueError):
 class InvalidFENStringException(ValueError):
     pass
 
-class InvalidFANStringException(ValueError):
+class InvalidPGNStringException(ValueError):
     pass

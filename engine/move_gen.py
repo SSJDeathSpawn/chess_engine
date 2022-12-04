@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Callable
 from itertools import product
 
 if TYPE_CHECKING:
-    from game import Game
+    from engine.simul_game import Game
 
-from data.consts import MoveKind, MoveTypes, PieceSide
+from engine.consts import MoveKind, MoveTypes, PieceSide
 from misc.utils import mini_chain
 
 
@@ -62,8 +62,22 @@ from misc.utils import mini_chain
 
 class MoveGenerator(object):
 
+    def __init__(self) -> None:
+        self.move_kind: MoveKind
+        self.vectors: list[tuple[int, int]]
+        self.limit: int
+        self.offsets: list[tuple[int, int]]
+        self.can_capture: bool
+        self.only_capture: bool
+        self.moves_conds: dict[MoveGenerator, Callable[[Game, str], bool]]
+        self.offset: tuple[int, int]
+        self.move_type: MoveTypes
+        self.extra_info: dict
+        self.annex: Callable[[Game, str, str], None]
+
     @staticmethod
     def vector_move(vectors: list[tuple[int, int]], limit: int) -> MoveGenerator:
+        """To handle vector type move generators"""
         self = MoveGenerator()
         self.move_kind = MoveKind.VECTOR
         self.vectors = vectors
@@ -72,6 +86,7 @@ class MoveGenerator(object):
 
     @staticmethod
     def jump_move(offsets: list[tuple[int, int]], can_capture: bool, only_capture: bool=False) -> MoveGenerator:
+        """To handle jump type move generators"""
         self = MoveGenerator()
         self.move_kind = MoveKind.JUMP
         self.offsets = offsets
@@ -81,13 +96,15 @@ class MoveGenerator(object):
 
     @staticmethod
     def complex_move(moves_conds: dict[MoveGenerator, Callable[[Game, str], bool]]) -> MoveGenerator:
+        """To handle complex type move generators"""
         self = MoveGenerator()
         self.move_kind = MoveKind.COMPLEX
         self.moves_conds = moves_conds
         return self
 
     @staticmethod
-    def special_move(offset: tuple[int, int], move_type: MoveTypes, can_capture: bool, only_capture: bool=False, extra_info: dict = {}, annex: Callable[[Game, str], None]=lambda game, pos: None) -> MoveGenerator:
+    def special_move(offset: tuple[int, int], move_type: MoveTypes, can_capture: bool, only_capture: bool=False, extra_info: dict = {}, annex: Callable[[Game, str, str], None]=lambda game, start_pos, end_pos: None) -> MoveGenerator:
+        """To handle special type move generators"""
         self = MoveGenerator()
         self.move_kind = MoveKind.SPECIAL
         self.offset = offset

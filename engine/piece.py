@@ -1,36 +1,37 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from enum import Enum
 
-if TYPE_CHECKING:
-    from logging import Logger
-    from data.game import Game
+from itertools import product
+from loguru import logger
 
-from data.consts import PieceSide, PieceType
-from data.move_gen import MoveGenerator
-from data.consts import MoveTypes
+if TYPE_CHECKING:
+    from engine.simul_game import Game
+
+from engine.consts import PieceSide, PieceType
+from engine.move_gen import MoveGenerator
+from engine.consts import MoveTypes
 
 from misc.utils import mini_chain, is_valid_square
-from logging_module.custom_logging import get_logger
 
-from itertools import product
 
-logger: Logger = get_logger(__name__)
 
-def disable_castling(game: Game, start_pos: str, end_pos: str):
+def disable_castling(game: Game, start_pos: str, end_pos: str) -> None:
+    """Small function to disable the ability to castle if the rook or king has moved"""
     offset: int = game.board[start_pos].side.value * -2
     if start_pos[0] == 'a':
-        game.castling[3 + offset] = False
+        game.castling = game.castling[:4+offset] + (False,) + game.castling[5+offset:]
     elif start_pos[0] == 'h':
-        game.castling[2 + offset] = False
+        game.castling = game.castling[:3+offset] + (False,) + game.castling[4+offset:]
     else:
         s_index = 2 + offset
-        game.castling[s_index: 2 + s_index] = [False, False]
+        game.castling = game.castling[:s_index+1] + (False, False) + game.castling[s_index+2:]
 
 def remove_pawn(game: Game, start_pos: str, end_pos: str):
-    pawn_pos = end_pos[0] + str(int(end_pos[1]) + start_pos[1] - end_pos[1])
+    """Removal of pawn after performing an en-passant"""
+    pawn_pos = end_pos[0] + str(int(end_pos[1]))
     opp_pawn_piece = game.board[pawn_pos] 
-    game.materials[opp_pawn_piece.side.other()].append(opp_pawn_piece)
+    game.materials[opp_pawn_piece.side.other().value].append(opp_pawn_piece)
     game.board[pawn_pos] = Piece.empty()
 
 king = MoveGenerator.complex_move({
@@ -79,16 +80,18 @@ pawn_move_dict.update({
 pawn = MoveGenerator.complex_move(pawn_move_dict)
 
 class PieceTypes(Enum):
+    """The different classe of pieces common to both sides"""
     EMPTY = None
-    ROOK = PieceType(letter='r', move_gen=rook)
-    KNIGHT = PieceType(letter='n', move_gen=knight)
-    KING = PieceType(letter='k', move_gen=king)
-    QUEEN = PieceType(letter='q', move_gen=queen)
-    BISHOP = PieceType(letter='b', move_gen=bishop)
-    PAWN = PieceType(letter='p', move_gen=pawn)
+    ROOK = PieceType(letter='r', move_gen=rook, image_name='rook')
+    KNIGHT = PieceType(letter='n', move_gen=knight, image_name='knight')
+    KING = PieceType(letter='k', move_gen=king, image_name='king')
+    QUEEN = PieceType(letter='q', move_gen=queen, image_name='queen')
+    BISHOP = PieceType(letter='b', move_gen=bishop, image_name='bishop')
+    PAWN = PieceType(letter='p', move_gen=pawn, image_name='pawn')
 
 
-def letter2type(letter: str) -> PieceType:
+def letter2type(letter: str) -> Optional[PieceTypes]:
+    """Returns the type of piece from it's encoding letter in both FEN and PGN"""
     actual = letter.lower()
     for type in PieceTypes:
         if type.value is not None:
@@ -98,7 +101,6 @@ def letter2type(letter: str) -> PieceType:
 class Piece:
 
     def __init__(self, piece_type: PieceTypes, piece_side: PieceSide):
-        self.logger = get_logger(__name__)
         self.type: PieceType = piece_type.value
         self.side: PieceSide = piece_side
 
@@ -108,20 +110,20 @@ class Piece:
     
     @staticmethod
     def is_empty(piece: Piece | None):
-        return (piece.type == PieceTypes.EMPTY and piece.side == PieceSide.EMPTY) or piece == None
+        return piece == None or (piece.type == PieceTypes.EMPTY and piece.side == PieceSide.EMPTY)
     
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: Piece) -> bool:
         if self.type is None or other.type is None: 
             return (self.type == other.type and self.side == other.side)
         else:
             return (self.type.letter == other.type.letter and self.side == other.side)
     
-    def __ne__(self, other: object) -> bool:
+    def __ne__(self, other: Piece) -> bool:
         return not self.__eq__(other)
 
     def __str__(self) -> str:
         if self.side and self.type:
-            return self.side.name + " " + letter2type(self.type.letter).name
+            return self.side.name + " " + (PieceTypes)(letter2type(self.type.letter)).name
         else:
             return "EMPTY"
 
